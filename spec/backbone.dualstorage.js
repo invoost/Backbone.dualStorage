@@ -7,7 +7,7 @@ persistence. Models are given GUIDS, and saved into a JSON object. Simple
 as that.
 */
 
-var S4, backboneSync, callbackTranslator, dualsync, localsync, modelUpdatedWithResponse, onlineSync, parseRemoteResponse, result;
+var S4, backboneSync, callbackTranslator, dualsync, localsync, onlineSync, parseRemoteResponse, result;
 
 Backbone.Collection.prototype.syncDirty = function() {
   var id, ids, model, store, url, _i, _len, _results;
@@ -197,13 +197,7 @@ callbackTranslator = {
 };
 
 localsync = function(method, model, options) {
-  var isValidModel, preExisting, response, store;
-  isValidModel = (method === 'clear') || (method === 'hasDirtyOrDestroyed');
-  isValidModel || (isValidModel = model instanceof Backbone.Model);
-  isValidModel || (isValidModel = model instanceof Backbone.Collection);
-  if (!isValidModel) {
-    throw new Error('model parameter is required to be a backbone model or collection.');
-  }
+  var preExisting, response, store;
   store = new Store(options.storeName);
   response = (function() {
     switch (method) {
@@ -285,13 +279,6 @@ parseRemoteResponse = function(object, response) {
   }
 };
 
-modelUpdatedWithResponse = function(model, response) {
-  var modelClone;
-  modelClone = model.clone();
-  modelClone.set(modelClone.parse(response));
-  return modelClone;
-};
-
 backboneSync = Backbone.sync;
 
 onlineSync = function(method, model, options) {
@@ -322,21 +309,18 @@ dualsync = function(method, model, options) {
         return success(localsync(method, model, options));
       } else {
         options.success = function(resp, status, xhr) {
-          var collection, modelAttributes, responseModel, _i, _len;
+          var i, _i, _len;
           resp = parseRemoteResponse(model, resp);
           if (!options.add) {
             localsync('clear', model, options);
           }
           if (_.isArray(resp)) {
-            collection = model;
             for (_i = 0, _len = resp.length; _i < _len; _i++) {
-              modelAttributes = resp[_i];
-              responseModel = modelUpdatedWithResponse(new collection.model, modelAttributes);
-              localsync('create', responseModel, options);
+              i = resp[_i];
+              localsync('create', i, options);
             }
           } else {
-            responseModel = modelUpdatedWithResponse(new model.constructor, resp);
-            localsync('create', responseModel, options);
+            localsync('create', resp, options);
           }
           return success(resp, status, xhr);
         };
@@ -348,9 +332,7 @@ dualsync = function(method, model, options) {
       break;
     case 'create':
       options.success = function(resp, status, xhr) {
-        var updatedModel;
-        updatedModel = modelUpdatedWithResponse(model, resp);
-        localsync(method, updatedModel, options);
+        localsync(method, resp, options);
         return success(resp, status, xhr);
       };
       options.error = function(resp) {
@@ -362,10 +344,8 @@ dualsync = function(method, model, options) {
       if (_.isString(model.id) && model.id.length === 36) {
         originalModel = model.clone();
         options.success = function(resp, status, xhr) {
-          var updatedModel;
-          updatedModel = modelUpdatedWithResponse(model, resp);
           localsync('delete', originalModel, options);
-          localsync('create', updatedModel, options);
+          localsync('create', resp, options);
           return success(resp, status, xhr);
         };
         options.error = function(resp) {
@@ -378,9 +358,9 @@ dualsync = function(method, model, options) {
         return onlineSync('create', model, options);
       } else {
         options.success = function(resp, status, xhr) {
-          var updatedModel;
-          updatedModel = modelUpdatedWithResponse(model, resp);
-          localsync(method, updatedModel, options);
+          var updatedAttributes;
+          updatedAttributes = _.extend({}, model.toJSON(), resp);
+          localsync(method, updatedAttributes, options);
           return success(resp, status, xhr);
         };
         options.error = function(resp) {

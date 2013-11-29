@@ -31,52 +31,8 @@
 
   describe('delegating to localsync and backboneSync, and calling the model callbacks', function() {
     describe('dual tier storage', function() {
-      var checkMergedAttributesFor;
-      checkMergedAttributesFor = function(method, modelToUpdate) {
-        var originalAttributes, ready;
-        if (modelToUpdate == null) {
-          modelToUpdate = model;
-        }
-        spyOnLocalsync();
-        originalAttributes = null;
-        ready = false;
-        runs(function() {
-          var serverResponse;
-          modelToUpdate.set({
-            updatedAttribute: 'original value'
-          });
-          originalAttributes = _.clone(modelToUpdate.attributes);
-          serverResponse = _.extend(model.toJSON(), {
-            updatedAttribute: 'updated value',
-            newAttribute: 'new value'
-          });
-          return dualsync(method, modelToUpdate, {
-            success: (function() {
-              return ready = true;
-            }),
-            serverResponse: serverResponse
-          });
-        });
-        waitsFor((function() {
-          return ready;
-        }), "The success callback should have been called", 100);
-        return runs(function() {
-          var localsyncedAttributes, updatedAttributes;
-          expect(modelToUpdate.attributes).toEqual(originalAttributes);
-          localsyncedAttributes = _(localsync.calls).map(function(call) {
-            return call.args[1].attributes;
-          });
-          updatedAttributes = {
-            id: 12,
-            position: 'arm',
-            updatedAttribute: 'updated value',
-            newAttribute: 'new value'
-          };
-          return expect(localsyncedAttributes).toContain(updatedAttributes);
-        });
-      };
       describe('create', function() {
-        it('delegates to both localsync and backboneSync', function() {
+        return it('delegates to both localsync and backboneSync', function() {
           var ready;
           spyOnLocalsync();
           ready = false;
@@ -94,18 +50,12 @@
             expect(backboneSync).toHaveBeenCalled();
             expect(backboneSync.calls[0].args[0]).toEqual('create');
             expect(localsync).toHaveBeenCalled();
-            expect(localsync.calls[0].args[0]).toEqual('create');
-            return expect(_(localsync.calls).every(function(call) {
-              return call.args[1] instanceof Backbone.Model;
-            })).toBeTruthy();
+            return expect(localsync.calls[0].args[0]).toEqual('create');
           });
-        });
-        return it('merges the response attributes into the model attributes', function() {
-          return checkMergedAttributesFor('create');
         });
       });
       describe('read', function() {
-        it('delegates to both localsync and backboneSync', function() {
+        return it('delegates to both localsync and backboneSync', function() {
           var ready;
           spyOnLocalsync();
           ready = false;
@@ -125,65 +75,9 @@
               return call.args[0] === 'read';
             })).toBeTruthy();
             expect(localsync).toHaveBeenCalled();
-            expect(_(localsync.calls).any(function(call) {
+            return expect(_(localsync.calls).any(function(call) {
               return call.args[0] === 'create';
             })).toBeTruthy();
-            return expect(_(localsync.calls).every(function(call) {
-              return call.args[1] instanceof Backbone.Model;
-            })).toBeTruthy();
-          });
-        });
-        return describe('for collections', function() {
-          return it('calls localsync create once for each model', function() {
-            var collectionResponse, ready;
-            spyOnLocalsync();
-            ready = false;
-            collectionResponse = [
-              {
-                id: 12,
-                position: 'arm'
-              }, {
-                id: 13,
-                position: 'a new model'
-              }
-            ];
-            runs(function() {
-              return dualsync('read', collection, {
-                success: (function() {
-                  return ready = true;
-                }),
-                serverResponse: collectionResponse
-              });
-            });
-            waitsFor((function() {
-              return ready;
-            }), "The success callback should have been called", 100);
-            return runs(function() {
-              var createCalls, createdModelAttributes;
-              expect(backboneSync).toHaveBeenCalled();
-              expect(_(backboneSync.calls).any(function(call) {
-                return call.args[0] === 'read';
-              })).toBeTruthy();
-              expect(localsync).toHaveBeenCalled();
-              createCalls = _(localsync.calls).select(function(call) {
-                return call.args[0] === 'create';
-              });
-              expect(createCalls.length).toEqual(2);
-              expect(_(createCalls).every(function(call) {
-                return call.args[1] instanceof Backbone.Model;
-              })).toBeTruthy();
-              createdModelAttributes = _(createCalls).map(function(call) {
-                return call.args[1].attributes;
-              });
-              expect(createdModelAttributes[0]).toEqual({
-                id: 12,
-                position: 'arm'
-              });
-              return expect(createdModelAttributes[1]).toEqual({
-                id: 13,
-                position: 'a new model'
-              });
-            });
           });
         });
       });
@@ -208,16 +102,37 @@
               return call.args[0] === 'update';
             })).toBeTruthy();
             expect(localsync).toHaveBeenCalled();
-            expect(_(localsync.calls).any(function(call) {
+            return expect(_(localsync.calls).any(function(call) {
               return call.args[0] === 'update';
-            })).toBeTruthy();
-            return expect(_(localsync.calls).every(function(call) {
-              return call.args[1] instanceof Backbone.Model;
             })).toBeTruthy();
           });
         });
-        return it('merges the response attributes into the model attributes', function() {
-          return checkMergedAttributesFor('update');
+        return it('merges updates from the server response into the model attributes on server-persisted models', function() {
+          var ready;
+          spyOnLocalsync();
+          ready = false;
+          runs(function() {
+            return dualsync('update', model, {
+              success: (function() {
+                return ready = true;
+              }),
+              serverReturnedAttributes: {
+                updated: 'by the server'
+              }
+            });
+          });
+          waitsFor((function() {
+            return ready;
+          }), "The success callback should have been called", 100);
+          return runs(function() {
+            var mergedAttributes;
+            mergedAttributes = {
+              id: 12,
+              position: 'arm',
+              updated: 'by the server'
+            };
+            return expect(localsync.calls[0].args[1]).toEqual(mergedAttributes);
+          });
         });
       });
       return describe('delete', function() {
@@ -241,11 +156,8 @@
               return call.args[0] === 'delete';
             })).toBeTruthy();
             expect(localsync).toHaveBeenCalled();
-            expect(_(localsync.calls).any(function(call) {
+            return expect(_(localsync.calls).any(function(call) {
               return call.args[0] === 'delete';
-            })).toBeTruthy();
-            return expect(_(localsync.calls).every(function(call) {
-              return call.args[1] instanceof Backbone.Model;
             })).toBeTruthy();
           });
         });

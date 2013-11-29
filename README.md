@@ -11,11 +11,12 @@ Include Backbone.dualStorage after having included Backbone.js:
     <script type="text/javascript" src="backbone.js"></script>
     <script type="text/javascript" src="backbone.dualstorage.js"></script>
 
-Create your models and collections in the usual way.
+Create your models and collections in the usual way. 
 Feel free to use Backbone as you usually would; this is a drop-in replacement.
 
+    
 Keep in mind that Backbone.dualStorage really loves your models. By default it will cache everything that passes through Backbone.sync. You can override this behaviour with the booleans ```remote``` or ```local``` on models and collections:
-
+    
     SomeCollection = Backbone.Collection.extend({
         local: true  // always fetched and saved only locally, never saves on remote
         remote: true // never cached, dualStorage is bypassed entirely
@@ -37,14 +38,14 @@ When the client goes offline, dualStorage allows you to keep changing and destro
 
     // server online. Go!
     People.fetch();       // load cars models and save them into localstorage
-
-    // server offline!
-    People.create({name: "Turing"});   // you still can create new cars...
-    People.models[0].save({age: 41});  // update existing ones...
-    People.models[1].destroy();        // and destroy as well
-
-    // server online again!
-    People.syncDirtyAndDestroyed();    // all changes are sent to the server and localStorage is updated
+	
+	// server offline!
+	People.create({name: "Turing"});   // you still can create new cars...
+	People.models[0].save({age: 41});  // update existing ones...
+	People.models[1].destroy();        // and destroy as well
+	
+	// server online again!
+	People.syncDirtyAndDestroyed();    // all changes are sent to the server and localStorage is updated
 
 Keep in mind that if you try to fetch() a collection that has dirty data, only data currently in the localStorage will be loaded. collection.syncDirtyAndDestroyed() needs to be executed before trying to download new data from the server.
 
@@ -81,9 +82,8 @@ This version is compiled automatically when running `make`.
 dualStorage has been tested against Backbone versions 0.9.2 - 1.0.0.
 Test with other versions by altering the version included in `SpecRunner.html`.
 
-Authors
+Credits
 -------
 
-Thanks to [Edward Anderson](https://github.com/nilbus) for the test suite and continued maintenance.
-Thanks to [Lucian Mihaila](https://github.com/lucian1900) for creating Backbone.dualStorage.
-Thanks to [Jerome Gravel-Niquet](https://github.com/jeromegn) for Backbone.localStorage.
+Thanks to [Edward Anderson](https://github.com/nilbus) for the test suite.
+Thanks to [Jerome Gravel-Niquet](https://github.com/jeromegn) for Backbone.dualStorage

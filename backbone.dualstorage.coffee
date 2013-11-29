@@ -1,5 +1,5 @@
 ###
-Backbone dualStorage Adapter v1.0.2
+Backbone dualStorage Adapter v1.0.1
 
 A simple module to replace `Backbone.sync` with *localStorage*-based
 persistence. Models are given GUIDS, and saved into a JSON object. Simple
@@ -12,7 +12,7 @@ Backbone.Collection.prototype.syncDirty = ->
   url = result(@, 'url')
   store = localStorage.getItem "#{url}_dirty"
   ids = (store and store.split(',')) or []
-
+  
   for id in ids
     model = if id.length == 36 then @where(id: id)[0] else @get(id)
     model.save()
@@ -21,7 +21,7 @@ Backbone.Collection.prototype.syncDestroyed = ->
   url = result(@, 'url')
   store = localStorage.getItem "#{url}_destroyed"
   ids = (store and store.split(',')) or []
-
+  
   for id in ids
     model = new @model({id: id})
     model.collection = @
@@ -111,9 +111,7 @@ class window.Store
 
   # Retrieve a model from `this.data` by id.
   find: (model) ->
-    modelAsJson = localStorage.getItem(@name + @sep + model.id)
-    return null if modelAsJson == null
-    JSON.parse modelAsJson
+    JSON.parse localStorage.getItem(@name + @sep + model.id)
 
   # Return the array of all models currently in storage.
   findAll: ->
@@ -147,13 +145,6 @@ callbackTranslator =
 # Override `Backbone.sync` to use delegate to the model or collection's
 # *localStorage* property, which should be an instance of `Store`.
 localsync = (method, model, options) ->
-  isValidModel = (method is 'clear') or (method is 'hasDirtyOrDestroyed')
-  isValidModel ||= model instanceof Backbone.Model
-  isValidModel ||= model instanceof Backbone.Collection
-
-  if not isValidModel
-    throw new Error 'model parameter is required to be a backbone model or collection.'
-
   store = new Store options.storeName
 
   response = switch method
@@ -212,11 +203,6 @@ parseRemoteResponse = (object, response) ->
   if not (object and object.parseBeforeLocalSave) then return response
   if _.isFunction(object.parseBeforeLocalSave) then object.parseBeforeLocalSave(response)
 
-modelUpdatedWithResponse = (model, response) ->
-  modelClone = model.clone()
-  modelClone.set modelClone.parse response
-  modelClone
-
 backboneSync = Backbone.sync
 onlineSync = (method, model, options) ->
   options.success = callbackTranslator.forBackboneCaller(options.success)
@@ -224,6 +210,7 @@ onlineSync = (method, model, options) ->
   backboneSync(method, model, options)
 
 dualsync = (method, model, options) ->
+
   options.storeName = result(model.collection, 'url') || result(model, 'url')
   options.success = callbackTranslator.forDualstorageCaller(options.success, model, options)
   options.error = callbackTranslator.forDualstorageCaller(options.error, model, options)
@@ -253,13 +240,10 @@ dualsync = (method, model, options) ->
           localsync('clear', model, options) unless options.add
 
           if _.isArray resp
-            collection = model
-            for modelAttributes in resp
-              responseModel = modelUpdatedWithResponse(new collection.model, modelAttributes)
-              localsync('create', responseModel, options)
+            for i in resp
+              localsync('create', i, options)
           else
-            responseModel = modelUpdatedWithResponse(new model.constructor, resp)
-            localsync('create', responseModel, options)
+            localsync('create', resp, options)
 
           success(resp, status, xhr)
 
@@ -270,8 +254,7 @@ dualsync = (method, model, options) ->
 
     when 'create'
       options.success = (resp, status, xhr) ->
-        updatedModel = modelUpdatedWithResponse model, resp
-        localsync(method, updatedModel, options)
+        localsync(method, resp, options)
         success(resp, status, xhr)
       options.error = (resp) ->
         options.dirty = true
@@ -284,9 +267,8 @@ dualsync = (method, model, options) ->
         originalModel = model.clone()
 
         options.success = (resp, status, xhr) ->
-          updatedModel = modelUpdatedWithResponse model, resp
           localsync('delete', originalModel, options)
-          localsync('create', updatedModel, options)
+          localsync('create', resp, options)
           success(resp, status, xhr)
         options.error = (resp) ->
           options.dirty = true
@@ -296,8 +278,8 @@ dualsync = (method, model, options) ->
         onlineSync('create', model, options)
       else
         options.success = (resp, status, xhr) ->
-          updatedModel = modelUpdatedWithResponse model, resp
-          localsync(method, updatedModel, options)
+          updatedAttributes = _.extend({}, model.toJSON(), resp)
+          localsync(method, updatedAttributes, options)
           success(resp, status, xhr)
         options.error = (resp) ->
           options.dirty = true
