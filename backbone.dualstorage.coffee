@@ -12,7 +12,7 @@ Backbone.Collection.prototype.syncDirty = ->
   url = result(@, 'url')
   store = localStorage.getItem "#{url}_dirty"
   ids = (store and store.split(',')) or []
-  
+
   for id in ids
     model = if id.length == 36 then @where(id: id)[0] else @get(id)
     model.save()
@@ -21,7 +21,7 @@ Backbone.Collection.prototype.syncDestroyed = ->
   url = result(@, 'url')
   store = localStorage.getItem "#{url}_destroyed"
   ids = (store and store.split(',')) or []
-  
+
   for id in ids
     model = new @model({id: id})
     model.collection = @
@@ -111,7 +111,9 @@ class window.Store
 
   # Retrieve a model from `this.data` by id.
   find: (model) ->
-    JSON.parse localStorage.getItem(@name + @sep + model.id)
+    modelAsJson = localStorage.getItem(@name + @sep + model.id)
+    return null if modelAsJson == null
+    JSON.parse modelAsJson
 
   # Return the array of all models currently in storage.
   findAll: ->
