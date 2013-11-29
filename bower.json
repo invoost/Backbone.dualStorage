@@ -1,8 +1,8 @@
 {
   "name": "Backbone.dualStorage",
   "main": "Backbone.dualStorage.js",
-  "version": "1.0.2",
-  "homepage": "https://github.com/nilbus/Backbone.dualStorage",
+  "version": "1.0.3-pre",
+  "homepage": "https://github.com/invoost/Backbone.dualStorage",
   "authors": [
     "Edward Anderson <nilbus@nilbus.com>",
     "Lucian Mihaila",
